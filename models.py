@@ -1,78 +1,78 @@
 import numpy as np
 
 def entropy( y ):
-    """
-    Calculate the entropy of the target variable.
+	"""
+	Calculate the entropy of the target variable.
 
-    Parameters:
-    y (numpy.ndarray): The target variable vector.
+	Parameters:
+	y (numpy.ndarray): The target variable vector.
 
-    Returns:
-    float: The entropy of the target variable.
-    """
-    # Get the unique elements and their counts
-    elements, counts = np.unique(y, return_counts = True)
+	Returns:
+	float: The entropy of the target variable.
+	"""
+	# Get the unique elements and their counts
+	elements, counts = np.unique(y, return_counts = True)
 
-    # Return entropy
-    return -np.sum([ (counts[ i ] / np.sum(counts)) * (np.log2(counts[ i ] / np.sum(counts))) for i in range(len(elements)) ])
+	# Return entropy
+	return -np.sum([ (counts[ i ] / np.sum(counts)) * (np.log2(counts[ i ] / np.sum(counts))) for i in range(len(elements)) ])
 
 def chooseAttribute( x, y, features ):
-    """
-    Choose the best attribute for splitting the data based on entropy.
+	"""
+	Choose the best attribute for splitting the data based on entropy.
 
-    Parameters:
-    x (pandas.DataFrame): The input feature matrix.
-    y (pandas.Series): The target variable vector.
-    features (list): The list of features to consider for splitting.
+	Parameters:
+	x (pandas.DataFrame): The input feature matrix.
+	y (pandas.Series): The target variable vector.
+	features (list): The list of features to consider for splitting.
 
-    Returns:
-    int: The index of the best feature for splitting.
-    """
-    # Initialize best
-    ft_best = None
+	Returns:
+	int: The index of the best feature for splitting.
+	"""
+	# Initialize best
+	ft_best = None
 
-    # Initialize variable to store lowest weighted average entropy initially infinite
-    w_entropy_best = np.inf
+	# Initialize variable to store lowest weighted average entropy initially infinite
+	w_entropy_best = np.inf
 
-    # Loop through all the features
-    for ft in features:
-        # Get s the number of subsets created by the current feature will be 1 or 0
-        s = x.iloc[ :, ft ].unique()
+	# Loop through all the features
+	for ft in features:
+		# Get s the number of subsets created by the current feature will be 1 or 0
+		s = x.iloc[ :, ft ].unique()
 
-        # Initialize variable to store weighted average entropy for current feature
-        w_entropy = 0
+		# Initialize variable to store weighted average entropy for current feature
+		w_entropy = 0
 
-        # Loop through each subset i in s
-        for i in s:
-            # Get the subset for x and y for the current feature where it matches subset i
-            x_i = x[ x.iloc[ :, ft ] == i ]
-            y_i = y[ x.iloc[ :, ft ] == i ]
+		# Loop through each subset i in s
+		for i in s:
+			# Get the subset for x and y for the current feature where it matches subset i
+			x_i = x[ x.iloc[ :, ft ] == i ]
+			y_i = y[ x.iloc[ :, ft ] == i ]
 
-            # Update weighted entropy accordingly
-            w_entropy += (len(y_i) / len(y)) * entropy(y_i)
+			# Update weighted entropy accordingly
+			w_entropy += (len(y_i) / len(y)) * entropy(y_i)
 
-        # Check if this weighted average entropy is the lowest yet
-        if w_entropy < w_entropy_best:
-            # If it is then set this to best entropy
-            w_entropy_best = w_entropy
+		# Check if this weighted average entropy is the lowest yet
+		if w_entropy < w_entropy_best:
+			# If it is then set this to best entropy
+			w_entropy_best = w_entropy
 
-            # Set the current feature to best feature
-            ft_best = ft
+			# Set the current feature to best feature
+			ft_best = ft
 
-    # Return the best feature
-    return ft_best
+	# Return the best feature
+	return ft_best
 
 def pca( data, n_components = 2 ):
 	"""
-    Perform Principal Component Analysis (PCA) on the dataset.
+	Perform Principal Component Analysis (PCA) on the dataset.
 
-    Parameters:
-    data (numpy.ndarray): The input data matrix where each row represents a sample.
-    n_components (int): The number of principal components to retain.
+	Parameters:
+	data (numpy.ndarray): The input data matrix where each row represents a sample.
+	n_components (int): The number of principal components to retain.
 
-    Returns:
-    tuple: A tuple containing the projected data, the principal component vectors, and the transpose of V matrix from SVD.
-    """
+	Returns:
+	tuple: A tuple containing the projected data, the principal component vectors, and the transpose of V matrix from SVD.
+	"""
 	# Standardize the data matrix
 	data_st = (data - np.mean(data, axis = 0)) / np.std(data, axis = 0)
 
@@ -90,33 +90,48 @@ def pca( data, n_components = 2 ):
 
 def linreg( X, y ):
 	"""
-    Perform closed-form linear regression to find the best-fit parameters.
+	Perform closed-form linear regression to compute the best-fit parameters
+	using the normal equation with the Moore-Penrose pseudo-inverse for stability.
 
-    Parameters:
-    X (numpy.ndarray): The input feature matrix.
-    y (numpy.ndarray): The target variable vector.
+	Args:
+		X (numpy.ndarray): A 2D array of shape (n_samples, n_features) representing
+			the input feature matrix.
+		y (numpy.ndarray): A 1D array of shape (n_samples,) representing the target
+			variable vector.
 
-    Returns:
-    numpy.ndarray: The best-fit parameters.
-    """
+	Returns:
+		numpy.ndarray: A 1D array of shape (n_features,) containing the best-fit
+		parameters (weights) for the linear regression model.
+	"""
 
-	return np.dot(np.linalg.pinv(np.dot(X.T,X)),np.dot(X.T,y))
+	# Return the weight vector computed using the normal equation
+	return np.dot(
+
+		np.linalg.pinv(
+
+			np.dot(X.T, X) # Gram matrix
+
+		), # Pseudo-inverse of the Gram matrix
+
+		np.dot(X.T, y) # Projection of y onto X
+
+	) # Dot the projection and pseudo-inverse for weight vector
 
 
 def logreg( X, y, lr = 0.01, num_iter = 10000 ):
 	"""
-    Perform logistic regression using gradient descent.
+	Perform logistic regression using gradient descent.
 
-    Parameters:
+	Parameters:
 :
-    X (numpy.ndarray): The input feature matrix.
-    y (numpy.ndarray): The target variable vector.
-    lr (float): The learning rate for gradient descent.
-    num_iter (int): The number of iterations for gradient descent.
+	X (numpy.ndarray): The input feature matrix.
+	y (numpy.ndarray): The target variable vector.
+	lr (float): The learning rate for gradient descent.
+	num_iter (int): The number of iterations for gradient descent.
 
-    Returns:
-    numpy.ndarray: The parameters for logistic regression.
-    """
+	Returns:
+	numpy.ndarray: The parameters for logistic regression.
+	"""
 	# Add a column of ones to the input feature matrix for the intercept term
 	X = np.c_[ np.ones((X.shape[ 0 ], 1)), X ]
 
@@ -142,15 +157,15 @@ def logreg( X, y, lr = 0.01, num_iter = 10000 ):
 
 def lda( X, y ):
 	"""
-    Perform Linear Discriminant Analysis (LDA) for dimensionality reduction.
+	Perform Linear Discriminant Analysis (LDA) for dimensionality reduction.
 
-    Parameters:
-    X (numpy.ndarray): The input feature matrix.
-    y (numpy.ndarray): The target variable vector.
+	Parameters:
+	X (numpy.ndarray): The input feature matrix.
+	y (numpy.ndarray): The target variable vector.
 
-    Returns:
-    numpy.ndarray: The transformation matrix for LDA.
-    """
+	Returns:
+	numpy.ndarray: The transformation matrix for LDA.
+	"""
 	# Calculate the mean vectors for each class
 	mean_vectors = [ np.mean(X[ y == cl ], axis = 0) for cl in np.unique(y) ]
 
@@ -201,86 +216,86 @@ def lda( X, y ):
 
 
 def dt( x, y, features = None, default = None ):
-    """
-    Implement the Decision Tree Learning algorithm.
+	"""
+	Implement the Decision Tree Learning algorithm.
 
-    Parameters:
-    x (pandas.DataFrame): The input feature matrix.
-    y (pandas.Series): The target variable vector.
-    features (list, optional): The list of features to consider for splitting.
-    default: The default value to return if the dataset is empty.
+	Parameters:
+	x (pandas.DataFrame): The input feature matrix.
+	y (pandas.Series): The target variable vector.
+	features (list, optional): The list of features to consider for splitting.
+	default: The default value to return if the dataset is empty.
 
-    Returns:
-    dict: The trained decision tree.
-    """
-    # Initialize features if not provided
-    if features is None:
-        features = list(range(x.shape[ 1 ]))
+	Returns:
+	dict: The trained decision tree.
+	"""
+	# Initialize features if not provided
+	if features is None:
+		features = list(range(x.shape[ 1 ]))
 
-    # Set the default value to the mode of the target variable if not provided
-    if default is None:
-        default = y.mode()[ 0 ]
+	# Set the default value to the mode of the target variable if not provided
+	if default is None:
+		default = y.mode()[ 0 ]
 
-    # If x is empty return default
-    if len(x) == 0:
-        return default
+	# If x is empty return default
+	if len(x) == 0:
+		return default
 
-    # Else if all y have same values return y1
-    elif len(np.unique(y)) == 1:
-        return y.iloc[ 0 ]
+	# Else if all y have same values return y1
+	elif len(np.unique(y)) == 1:
+		return y.iloc[ 0 ]
 
-    # Else if features is empty then return probabilities for each class
-    elif len(features) == 0:
-        class_counts = y.value_counts(normalize = True).to_dict()
-        return class_counts
+	# Else if features is empty then return probabilities for each class
+	elif len(features) == 0:
+		class_counts = y.value_counts(normalize = True).to_dict()
+		return class_counts
 
-    # If normal case
-    else:
-        # Get best attribute to split using chooseAttribute function
-        best = chooseAttribute(x, y, features)
+	# If normal case
+	else:
+		# Get best attribute to split using chooseAttribute function
+		best = chooseAttribute(x, y, features)
 
-        # Define new internal node using best feature
-        tree = { best: { } }
+		# Define new internal node using best feature
+		tree = { best: { } }
 
-        # Remove the best feature from the feature set
-        features = [ i for i in features if i != best ]
+		# Remove the best feature from the feature set
+		features = [ i for i in features if i != best ]
 
-        # Elements of x, y with best == 1 or True
-        x_t = x[ x.iloc[ :, best ] == 1 ]
-        y_t = y[ x.iloc[ :, best ] == 1 ]
+		# Elements of x, y with best == 1 or True
+		x_t = x[ x.iloc[ :, best ] == 1 ]
+		y_t = y[ x.iloc[ :, best ] == 1 ]
 
-        # Elements of x, y with best == 0 or False
-        x_f = x[ x.iloc[ :, best ] == 0 ]
-        y_f = y[ x.iloc[ :, best ] == 0 ]
+		# Elements of x, y with best == 0 or False
+		x_f = x[ x.iloc[ :, best ] == 0 ]
+		y_f = y[ x.iloc[ :, best ] == 0 ]
 
-        # Set the default value to mode of Y if not empty else previous default
-        default_t = y_t.mode()[ 0 ] if not y_t.empty else default
+		# Set the default value to mode of Y if not empty else previous default
+		default_t = y_t.mode()[ 0 ] if not y_t.empty else default
 
-        # Create left child recursively and set to leftChild of tree
-        leftChild = dt(x_t, y_t, features, default_t)
-        tree[ best ][ 1 ] = leftChild
+		# Create left child recursively and set to leftChild of tree
+		leftChild = dt(x_t, y_t, features, default_t)
+		tree[ best ][ 1 ] = leftChild
 
-        # Set the default value to mode of Y if not empty else previous default
-        default_f = y_f.mode()[ 0 ] if not y_f.empty else default
+		# Set the default value to mode of Y if not empty else previous default
+		default_f = y_f.mode()[ 0 ] if not y_f.empty else default
 
-        # Create right child recursively and set to rightChild of tree
-        rightChild = dt(x_f, y_f, features, default_f)
-        tree[ best ][ 0 ] = rightChild
+		# Create right child recursively and set to rightChild of tree
+		rightChild = dt(x_f, y_f, features, default_f)
+		tree[ best ][ 0 ] = rightChild
 
-        return tree
+		return tree
 
 
 def nb( X, y ):
 	"""
-    Implement a Naive Bayes classifier.
+	Implement a Naive Bayes classifier.
 
-    Parameters:
-    X (numpy.ndarray): The input feature matrix.
-    y (numpy.ndarray): The target variable vector.
+	Parameters:
+	X (numpy.ndarray): The input feature matrix.
+	y (numpy.ndarray): The target variable vector.
 
-    Returns:
-    GaussianNB: The trained naive bayes classifier.
-    """
+	Returns:
+	GaussianNB: The trained naive bayes classifier.
+	"""
 	from sklearn.naive_bayes import GaussianNB
 
 	# Create the Gaussian Naive Bayes classifier

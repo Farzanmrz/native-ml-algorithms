@@ -1,14 +1,45 @@
+# Imports
 import os
 import cv2
 import numpy as np
 from PIL import Image
+import math
+
+def calc_rmse(y_true, y_pred):
+    """
+    Calculate the Root Mean Square Error (RMSE) between actual and predicted values.
+
+    Args:
+        y_true (numpy.ndarray): The actual target values.
+        y_pred (numpy.ndarray): The predicted target values.
+
+    Returns:
+        float: The RMSE value, representing the average prediction error.
+    """
+    # Compute the RMSE between actual and predicted values
+    return ((sum((y_true - y_pred) ** 2)) / len(y_true)) ** 0.5
+
+def calc_smape(y_true, y_pred):
+    """
+    Calculate the Symmetric Mean Absolute Percentage Error (SMAPE)
+    between actual and predicted values.
+
+    Args:
+        y_true (numpy.ndarray): The actual target values.
+        y_pred (numpy.ndarray): The predicted target values.
+
+    Returns:
+        float: The SMAPE value, representing the average percentage error.
+    """
+    # Compute the SMAPE between actual and predicted values
+    return sum(abs(y_true - y_pred) / (abs(y_true) + abs(y_pred))) / len(y_true)
+
 
 
 def load_yale_faces( data_dir, img_size = (40, 40) ):
 	files = [ file for file in os.listdir(data_dir) if file != ".DS_Store" ]
 	data = np.array([ np.array(Image.open(os.path.join(data_dir, file)).resize(img_size)).ravel() for file in files ])
 	return data
-
 
 def cross_validation( df, S, num_seeds = 20 ):
 	"""
@@ -29,29 +60,22 @@ def cross_validation( df, S, num_seeds = 20 ):
 
 	# Loop through the number of seeds
 	for seed in range(num_seeds):
-		np.random.seed(seed)  # Set the seed for reproducibility
 
-		# Shuffle the dataset
-		currdf = df.sample(frac = 1)
+		# Set seed for reproducibility
+		np.random.seed(seed)
 
-		# Reset the index
-		currdf.reset_index(drop = True, inplace = True)
-
-		# Add a dummy variable for intercept
-		currdf.insert(0, 'dummy', np.ones(len(currdf)))
+		# Shuffle the dataset, reset the index, and add a dummy variable for intercept in one step
+		currdf = df.sample(frac = 1).reset_index(drop = True).assign(dummy = 1.0)
 
 		# Declare variable to hold total sum of SE values over different folds
 		se_foldSum = 0
 
 		# Loop through each fold
 		for i in range(S):
-			# Get rows for training and validation
-			row_train = currdf.index[ currdf.index % S != i ].tolist()
-			row_val = currdf.index[ currdf.index % S == i ].tolist()
 
-			# Split into training and validation sets
-			training_data = currdf.loc[ row_train ]
-			validation_data = currdf.loc[ row_val ]
+			# Split into training and validation sets as per fold
+			training_data = currdf.loc[ currdf.index[ currdf.index % S != i ].tolist() ]
+			validation_data = currdf.loc[ currdf.index[ currdf.index % S == i ].tolist() ]
 
 			# Set x and y separate
 			y_train = training_data[ 'charges' ]
@@ -59,28 +83,11 @@ def cross_validation( df, S, num_seeds = 20 ):
 			x_train = training_data.drop('charges', axis = 1)
 			X_val = validation_data.drop('charges', axis = 1)
 
-			# Calculate the weight vector using the linreg function
-			w = linreg(x_train, y_train)
+			# Get the squared error for current fold and add to sum
+			se_foldSum += np.sum(np.square(y_val - np.dot(X_val, linreg(x_train, y_train))))
 
-			# Make predictions on the validation set
-			y_val_pred = np.dot(X_val, w)
-
-			# Calculate squared error values
-			se_val = (y_val - y_val_pred) ** 2
-
-			# Sum all squared error values in vector
-			se_sum = np.sum(se_val)
-
-			# Add to total sum over folds
-			se_foldSum += se_sum
-
-		# Calculate RMSE for current seed
-		currRmse = ((se_foldSum) / (currdf.shape[ 0 ])) ** 0.5
-
-		# Append to all RMSE values
-		rmse_vals.append(currRmse)
+		# Append RMSE for current seed to all RMSE values
+		rmse_vals.append(math.sqrt(((se_foldSum) / (currdf.shape[ 0 ]))))
 
 	# Output the mean and standard deviation of the RMSE across all seeds
-	print(f"Mean RMSE for S = {S}: {np.mean(rmse_vals)}")
-	print(f"Standard Deviation for S = {S}: {np.std(rmse_vals)}")
-	print()
+	print(f"Cross-Val S = {S} :-\tMean: {np.mean(rmse_vals)}\t Stdev: {np.std(rmse_vals)}")
