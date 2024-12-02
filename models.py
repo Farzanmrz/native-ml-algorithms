@@ -44,8 +44,7 @@ def chooseAttribute( x, y, features ):
 
 		# Loop through each subset i in s
 		for i in s:
-			# Get the subset for x and y for the current feature where it matches subset i
-			x_i = x[ x.iloc[ :, ft ] == i ]
+			# Get the subset y for the current feature where it matches subset i
 			y_i = y[ x.iloc[ :, ft ] == i ]
 
 			# Update weighted entropy accordingly
@@ -117,7 +116,6 @@ def linreg( X, y ):
 
 	) # Dot the projection and pseudo-inverse for weight vector
 
-
 def logreg( X, y, lr = 0.01, num_iter = 10000 ):
 	"""
 	Perform logistic regression using gradient descent.
@@ -153,6 +151,7 @@ def logreg( X, y, lr = 0.01, num_iter = 10000 ):
 		theta -= lr * gradient
 
 	return theta
+
 
 
 def lda( X, y ):
@@ -203,19 +202,13 @@ def lda( X, y ):
 	# Calculate the eigenvalues and eigenvectors for the matrix (S_W^-1 S_B)
 	eig_vals, eig_vecs = np.linalg.eig(np.linalg.inv(S_W).dot(S_B))
 
-	# Create pairs of eigenvalues and eigenvectors
-	eig_pairs = [ (np.abs(eig_vals[ i ]), eig_vecs[ :, i ]) for i in range(len(eig_vals)) ]
-
-	# Sort the pairs by eigenvalue in descending order
-	eig_pairs = sorted(eig_pairs, key = lambda k: k[ 0 ], reverse = True)
-
 	# Create the transformation matrix using the top eigenvectors
-	W = np.hstack([ eig_pairs[ i ][ 1 ].reshape(X.shape[ 1 ], 1) for i in range(2) ])
+	W = eig_vecs[:, np.argmax(eig_vals)]
 
 	return W
 
 
-def dt( x, y, features = None, default = None ):
+def dtl( x, y, features = None, default = None ):
 	"""
 	Implement the Decision Tree Learning algorithm.
 
@@ -272,17 +265,50 @@ def dt( x, y, features = None, default = None ):
 		default_t = y_t.mode()[ 0 ] if not y_t.empty else default
 
 		# Create left child recursively and set to leftChild of tree
-		leftChild = dt(x_t, y_t, features, default_t)
+		leftChild = dtl(x_t, y_t, features, default_t)
 		tree[ best ][ 1 ] = leftChild
 
 		# Set the default value to mode of Y if not empty else previous default
 		default_f = y_f.mode()[ 0 ] if not y_f.empty else default
 
 		# Create right child recursively and set to rightChild of tree
-		rightChild = dt(x_f, y_f, features, default_f)
+		rightChild = dtl(x_f, y_f, features, default_f)
 		tree[ best ][ 0 ] = rightChild
 
 		return tree
+
+def dt(xtrain, ytrain, xvalid):
+	"""
+	Build and predict with a decision tree.
+
+	Parameters:
+		xtrain (pd.DataFrame): Training feature matrix.
+		ytrain (pd.Series): Training target variable.
+		xvalid (pd.DataFrame): Validation feature matrix.
+
+	Returns:
+		list: Predictions for the validation dataset.
+	"""
+	features = list(range(xtrain.shape[1]))
+	default = ytrain.mode()[0]
+	root = dtl(xtrain, ytrain, features, default)
+	predictions = []
+
+	def predict(dt, row):
+		if not isinstance(dt, dict):
+			return dt
+		if all(not isinstance(subtree, dict) for subtree in dt.values()):
+			return max(dt.items(), key=lambda item: item[1])[0]
+		for ft, subtree in dt.items():
+			ft_val = row.iloc[ft]
+			if ft_val in subtree:
+				return predict(subtree[ft_val], row)
+		return default
+
+	for _, row in xvalid.iterrows():
+		predictions.append(predict(root, row))
+
+	return predictions
 
 
 def nb( X, y ):
