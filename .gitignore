@@ -110,8 +110,6 @@ venv.bak/
 .spyderproject
 .spyproject
 
-# Rope project settings
-.ropeproject
 
 # mkdocs documentation
 /site
